@@ -144,53 +144,8 @@ def analyze_truss(force_angle = 240,  roller_angle = 30):
         stress = E / L * np.array([-c, -s, c, s]) @ u_element
         element_stresses[element] = stress
 
-    # Visualize the truss
-    fig, ax = plt.subplots()
-    for element, (node1, node2) in elements.items():
-        x1, y1 = nodes[node1]
-        x2, y2 = nodes[node2]
-        ax.plot([x1, x2], [y1, y2], 'k-', linewidth=2)
 
-    # Plot undeformed truss
-    for node, coords in nodes.items():
-        ax.plot(coords[0], coords[1], 'bo', markersize=8)
-        ax.text(coords[0] + 0.2, coords[1] + 0.2, node, fontsize=12)
-
-    # Plot deformed truss
+    
     deformed_nodes = {node: coords + U_global[2*i:2*i+2] for i, (node, coords) in enumerate(nodes.items())}
-    for element, (node1, node2) in elements.items():
-        x1, y1 = deformed_nodes[node1]
-        x2, y2 = deformed_nodes[node2]
-        ax.plot([x1, x2], [y1, y2], 'r--', linewidth=2)
 
-    ax.set_aspect('equal')
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_title('Truss Analysis')
-
-    return U_global, reaction_forces, element_stresses, (fig, ax)
-
-
-roller_angle = 30
-force_angle = 240
-
-U, R, S, plots = analyze_truss(force_angle=force_angle, roller_angle=roller_angle)
-
-
-# Print results
-print("Nodal Displacements:")
-for i, node in enumerate(['A', 'B', 'C', 'D']):
-    print(f"{node}: {U[2*i:2*i+2]} in")
-print("\nReaction Forces:")
-for node, force in R.items():
-    print(f"{node}: {force} lb")
-print("\nElement Stresses:")
-for element, stress in S.items():
-    print(f"Element {element}: {stress} psi")
-
-# Save the plot to a file
-figure, axis = plots  # Unpack the Matplotlib figure and axis
-filename = "truss_analysis_plot.png"  # Desired file name
-figure.savefig(filename, dpi=300)  # Save the figure with high resolution (300 DPI)
-print(f"\nPlot saved to: {filename}")
-plots[0].show()
+    return U_global, reaction_forces, element_stresses, nodes, deformed_nodes 

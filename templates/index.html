@@ -1,14 +1,307 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Truss Analysis</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.1/dist/tailwind.min.css" rel="stylesheet">
-</head>
-<body class="bg-gray-100 font-sans">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.20.0.min.js"></script>
+  </head>
+  <body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-4">
+      <h1 class="text-3xl font-bold text-center mb-8">
+        Truss System Calculator
+      </h1>
 
-    
-    <h1>HELLO WORLD</h1>
-</body>
+      <div class="flex flex-wrap md:flex-nowrap gap-8">
+        <div
+          class="w-full md:w-1/3 shadow-lg p-4 rounded text-white bg-gray-800"
+        >
+          <img
+            src="{{ url_for('static', filename='images/truss.png') }}"
+            alt="Example Image"
+          />
+
+          <div class="mt-4">
+            <h6 class="text-lg font-semibold text-white mb-4">
+              System Information
+            </h6>
+            <hr class="mb-4" />
+            <p class="text-white text-sm mb-4">External load (P): 2000 lbf</p>
+
+            <h6 class="text-md font-semibold text-white">Members 1, 2, 5</h6>
+            <ul class="list-disc list-inside mb-4 text-sm">
+              <li class="text-white">Material: Steel</li>
+              <li class="text-white">Diameter: 0.5 in</li>
+              <li class="text-white">
+                Modulus of elasticity (E): 30 × 10<sup>6</sup> psi
+              </li>
+            </ul>
+
+            <h6 class="text-md font-semibold text-white">Members 3, 4</h6>
+            <ul class="list-disc list-inside text-sm mb-4">
+              <li class="text-white">Material:Aluminum</li>
+              <li class="text-white">Diameter: 0.4 in</li>
+              <li class="text-white">
+                Modulus of elasticity (E): 11 x 10<sup>6</sup> psi
+              </li>
+            </ul>
+
+            <h6 class="text-md font-semibold text-white">Nodal Coordinates</h6>
+            <ul class="list-disc list-inside text-sm">
+              <li class="text-white">A: [0, 0]</li>
+              <li class="text-white">B: [0, 10]</li>
+              <li class="text-white">C: Variable</li>
+              <li class="text-white">D: [12, 0]</li>
+            </ul>
+          </div>
+
+          <div class="mt-4">
+            <form id="trussForm">
+              <label for="force_angle" class="block font-semibold mb-2">
+                Force Angle (β)
+              </label>
+              <input
+                id="force_angle"
+                type="number"
+                step="any"
+                class="w-full border border-gray-300 p-2 rounded mb-4 text-black"
+                placeholder="Enter external force angle (0 to 360 degrees)"
+              />
+
+              <label for="roller_angle" class="block font-semibold mb-2">
+                Roller Angle (γ)
+              </label>
+              <input
+                id="roller_angle"
+                type="number"
+                step="any"
+                class="w-full border border-gray-300 p-2 rounded mb-4 text-black"
+                placeholder="Enter roller support angle (0 to 45 degrees)"
+              />
+
+              <div class="flex justify-end">
+                <button
+                  type="button"
+                  id="analyzeButton"
+                  class="bg-amber-500 text-white py-2 px-4 rounded hover:bg-amber-600"
+                >
+                  Analyze
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="w-full md:w-2/3">
+          <div
+            id="trussPlot"
+            class="bg-white shadow-lg rounded mb-8"
+            style="height: 500px"
+          ></div>
+
+          <div class="bg-white shadow-lg p-4 rounded" id="results"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const analyzeTruss = async (force_angle, roller_angle) => {
+        force_angle = force_angle + 180;
+        const response = await fetch("/analyze", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            force_angle: force_angle,
+            roller_angle: roller_angle,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const resultsDiv = document.getElementById("results");
+
+          const createTable = (title, obj, keyHeader, valueHeader) => {
+            const rows = Object.entries(obj)
+              .map(
+                ([key, value]) => `
+                    <tr>
+                      <td class="border px-4 py-2 font-bold">${key}</td>
+                      <td class="border px-4 py-2">
+                        ${
+                          Array.isArray(value)
+                            ? `[${value.join(", ")}]`
+                            : typeof value === "object"
+                            ? JSON.stringify(value)
+                            : value
+                        }
+                      </td>
+                    </tr>
+                  `
+              )
+              .join("");
+            return `
+                <h3 class="text-lg font-bold mt-4">${title}</h3>
+                <table class="table-auto w-full text-left border-collapse mb-4">
+                  <thead>
+                    <tr>
+                      <th class="border px-4 py-2">${keyHeader}</th>
+                      <th class="border px-4 py-2">${valueHeader}</th>
+                    </tr>
+                  </thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              `;
+          };
+
+          resultsDiv.innerHTML = `
+              <h2 class="text-xl text-center font-bold mb-4">Results</h2>
+
+                 <h3 class="text-lg font-bold mt-4">Angles</h3>
+                <table class="table-auto w-full text-left border-collapse mb-4">
+                 
+                  <tbody>
+                         <tr>
+                      <td class="border px-4 py-2 font-bold">Force</td>
+                      <td class="border px-4 py-2">
+                        ${force_angle - 180}&deg;
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="border px-4 py-2 font-bold">Roller</td>
+                      <td class="border px-4 py-2">
+                        ${roller_angle}&deg;
+                      </td>
+                    </tr>
+
+                  </tbody>
+                </table>
+
+
+              ${createTable(
+                "Original Node Coordinates",
+                data.original_nodes,
+                "Node",
+                "Coordinates [x, y] inches"
+              )}
+              ${createTable(
+                "Deformed Node Coordinates",
+                data.deformed_nodes,
+                "Node",
+                "Coordinates [x, y] inches"
+              )}
+              ${createTable(
+                "Nodal Displacements",
+                data.nodal_displacements,
+                "Node",
+                "Displacement [x, y] inches"
+              )}
+              ${createTable(
+                "Element Stresses",
+                data.element_stresses,
+                "Element",
+                "Stress, psi"
+              )}
+              ${createTable(
+                "Reaction Forces",
+                data.reaction_forces,
+                "Node",
+                "Force [x, y] lbf"
+              )}
+            `;
+
+          plotTruss(data.original_nodes, data.deformed_nodes, data.elements);
+        } else {
+          document.getElementById("results").innerHTML = `
+              <p class="text-red-500">Error: Unable to process your request.</p>
+            `;
+        }
+      };
+
+      function plotTruss(originalNodes, deformedNodes, elements) {
+        const processNodes = (nodes, elements, color, lineStyle, name) => {
+          const x = [];
+          const y = [];
+          const trace = {
+            x: [],
+            y: [],
+            mode: "lines+markers",
+            marker: { size: 6, color: color },
+            line: { color: color, width: 1.5, dash: lineStyle },
+            name: name,
+          };
+          Object.values(elements).forEach(([start, end]) => {
+            x.push(nodes[start][0], nodes[end][0], null);
+            y.push(nodes[start][1], nodes[end][1], null);
+          });
+          trace.x = x;
+          trace.y = y;
+          return trace;
+        };
+
+        const originalTrace = processNodes(
+          originalNodes,
+          elements,
+          "blue",
+          "solid",
+          "Original"
+        );
+        const deformedTrace = processNodes(
+          deformedNodes,
+          elements,
+          "red",
+          "solid",
+          "Deformed"
+        );
+
+        const data = [originalTrace, deformedTrace];
+        const layout = {
+          title: "Truss Geometry",
+          autosize: true,
+          showlegend: true,
+          legend: {
+            orientation: "h",
+            y: -0.2,
+            x: 0.5,
+            xanchor: "center",
+          },
+          margin: { l: 40, r: 20, b: 80, t: 40 },
+        };
+
+        Plotly.newPlot("trussPlot", data, layout, { responsive: true });
+      }
+
+      const analyzeButton = document.getElementById("analyzeButton");
+      analyzeButton.addEventListener("click", () => {
+        const force_angle = parseFloat(
+          document.getElementById("force_angle").value
+        );
+        const roller_angle = parseFloat(
+          document.getElementById("roller_angle").value
+        );
+        if (
+          isNaN(force_angle) ||
+          isNaN(roller_angle) ||
+          force_angle < 0 ||
+          force_angle > 360 ||
+          roller_angle < 0 ||
+          roller_angle > 45
+        ) {
+          alert(
+            "Please enter valid numeric values for both force angle and roller angle."
+          );
+          return;
+        }
+        analyzeTruss(force_angle, roller_angle);
+      });
+
+      window.onload = () => {
+        const defaultForceAngle = 60;
+        const defaultRollerAngle = 30;
+        analyzeTruss(defaultForceAngle, defaultRollerAngle);
+      };
+    </script>
+  </body>
 </html>
