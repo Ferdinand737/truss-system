@@ -1,44 +1,67 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Dec 17 12:46:56 2024
-
-@author: rober
-"""
-
 import numpy as np
 import matplotlib.pyplot as plt
 
-def analyze_truss(nodes, elements, materials, element_properties,
-                  external_forces, fixed_nodes, roller_angle=0,
-                  force_angle=270):
-    """
-    Analyzes a 2D truss structure under given conditions.
+def analyze_truss(force_angle = 240,  roller_angle = 30):
 
-    Args:
-        nodes (dict): Node coordinates as {'A': np.array([x, y]), ...}.
-        elements (dict): Element connectivity as {1: ['A', 'B'], ...}.
-        materials (dict): Material properties as {'steel': {'E': value, 'nu': value}, ...}.
-        element_properties (dict): Element properties as {1: {'material': 'steel', 'diameter': value}, ...}.
-        external_forces (dict): External forces as {'C': np.array([Fx, Fy]), ...}.
-        fixed_nodes (list): List of fixed nodes, e.g., ['A', 'B'].
-        roller_angle (float): Angle of the roller support in degrees (default: 0).
-        force_angle (float): Angle of the applied external force in degrees (default: 270).
+    force_node = 'D'
+    fixed_nodes = ['A', 'B']
 
-    Returns:
-        tuple: Nodal displacements, reaction forces, element stresses, and plot objects.
-    """
+    materials = {
+        'steel': {'E': 30e6},
+        'aluminum': {'E': 11e6}
+    }
 
-    # Convert angles to radians
-    # roller_angle = np.deg2rad(roller_angle)
-    # force_angle = np.deg2rad(force_angle)
+    element_properties = {
+        1: {'material': 'steel', 'diameter': 0.5},
+        2: {'material': 'steel', 'diameter': 0.5},
+        3: {'material': 'aluminum', 'diameter': 0.4},
+        4: {'material': 'aluminum', 'diameter': 0.4},
+        5: {'material': 'steel', 'diameter': 0.5}
+    }
 
-    # Calculate element lengths and angles
-    element_lengths = {}
+    elements = {
+        1: ['A', 'B'],
+        2: ['A', 'C'],
+        3: ['A', 'D'],
+        4: ['B', 'C'],
+        5: ['C', 'D']
+    }
+
+    fixed_element_lengths = {
+        1: float(10),
+        2: 12/np.cos(np.deg2rad(roller_angle)),
+        3: float(12)
+    }
+
+    fixed_nodes_coords = {
+        'A': np.array([0, 0]),
+        'B': np.array([0, 10]),
+        'D': np.array([12, 0])
+    }
+
+    
+    roller_angle = np.deg2rad(roller_angle)
+    force_angle = np.deg2rad(force_angle)
+
+    external_forces = {
+        force_node : np.array([np.cos(force_angle)* 2000, np.sin(force_angle)*2000])  
+    }
+
+
+    element_lengths = fixed_element_lengths
+
+    element_lengths[5] = element_lengths[3] * np.tan(roller_angle)
+    element_lengths[4] = np.sqrt(element_lengths[1]**2 + element_lengths[2]**2 - 2* element_lengths[1]*element_lengths[2]*np.cos(np.pi/2 - roller_angle))
+
+    nodes = fixed_nodes_coords
+
+    nodes['C'] = np.array([element_lengths[3], element_lengths[5]])
+
     element_angles = {}
     for element, (node1, node2) in elements.items():
         delta = nodes[node2] - nodes[node1]
-        element_lengths[element] = np.linalg.norm(delta)
         element_angles[element] = np.arctan2(delta[1], delta[0])
+
 
     # Calculate element stiffness matrices
     element_stiffness_matrices = {}
@@ -47,8 +70,20 @@ def analyze_truss(nodes, elements, materials, element_properties,
         theta = element_angles[element]
         E = materials[element_properties[element]['material']]['E']
         A = np.pi * (element_properties[element]['diameter'] / 2) ** 2
-        c = np.cos(theta)
-        s = np.sin(theta)
+        
+        # Handle numerical precision issues
+        if np.isclose(theta, 0):
+            c, s = 1.0, 0.0
+        elif np.isclose(theta, np.pi/2):
+            c, s = 0.0, 1.0
+        elif np.isclose(theta, np.pi):
+            c, s = -1.0, 0.0
+        elif np.isclose(theta, 3*np.pi/2):
+            c, s = 0.0, -1.0
+        else:
+            c = np.cos(theta)
+            s = np.sin(theta)
+
         k = E * A / L * np.array([
             [c**2, c*s, -c**2, -c*s],
             [c*s, s**2, -c*s, -s**2],
@@ -135,52 +170,23 @@ def analyze_truss(nodes, elements, materials, element_properties,
 
     return U_global, reaction_forces, element_stresses, (fig, ax)
 
-# Example usage with variable conditions
-nodes = {
-    'A': np.array([0, 0]),
-    'B': np.array([0, 10]),
-    'C': np.array([12, 6]),
-    'D': np.array([12, 0])
-}
 
-elements = {
-    1: ['A', 'B'],
-    2: ['A', 'C'],
-    3: ['A', 'D'],
-    4: ['B', 'C'],
-    5: ['C', 'D']
-}
+roller_angle = 30
+force_angle = 240
 
-materials = {
-    'steel': {'E': 30e6, 'nu': 0.3},  # Steel
-    'aluminum': {'E': 11e6, 'nu': 0.33}  # Aluminum
-}
+U, R, S, plots = analyze_truss(force_angle=force_angle, roller_angle=roller_angle)
 
-element_properties = {
-    1: {'material': 'steel', 'diameter': 0.5},
-    2: {'material': 'aluminum', 'diameter': 0.4},
-    3: {'material': 'steel', 'diameter': 0.5},
-    4: {'material': 'aluminum', 'diameter': 0.4},
-    5: {'material': 'steel', 'diameter': 0.5}
-}
-
-external_forces = {
-    'D': np.array([0, -2000])  # Force at node C
-}
-
-U, R, S, plots = analyze_truss(nodes, elements, materials, element_properties,
-                                external_forces, ['A', 'B'], roller_angle=30, force_angle=135)
 
 # Print results
 print("Nodal Displacements:")
-for i, node in enumerate(nodes):
-    print(f"{node}: {U[2*i:2*i+2]}")
+for i, node in enumerate(['A', 'B', 'C', 'D']):
+    print(f"{node}: {U[2*i:2*i+2]} in")
 print("\nReaction Forces:")
 for node, force in R.items():
-    print(f"{node}: {force}")
+    print(f"{node}: {force} lb")
 print("\nElement Stresses:")
 for element, stress in S.items():
-    print(f"Element {element}: {stress}")
+    print(f"Element {element}: {stress} psi")
 
 # Save the plot to a file
 figure, axis = plots  # Unpack the Matplotlib figure and axis
