@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def analyze_truss(force_angle = 240,  roller_angle = 30):
+def analyze_truss(force_angle = 240,  roller_angle = 30, force_magnitude=2000.0):
 
     force_node = 'D'
     fixed_nodes = ['A', 'B']
@@ -27,16 +27,11 @@ def analyze_truss(force_angle = 240,  roller_angle = 30):
         5: ['C', 'D']
     }
 
-    fixed_element_lengths = {
-        1: float(10),
-        2: 12/np.cos(np.deg2rad(roller_angle)),
-        3: float(12)
-    }
-
-    fixed_nodes_coords = {
+    nodes = {
         'A': np.array([0, 0]),
         'B': np.array([0, 10]),
-        'D': np.array([12, 0])
+        'C': np.array([12, 6]),
+        'D': np.array([12, 0]),
     }
 
     
@@ -44,22 +39,15 @@ def analyze_truss(force_angle = 240,  roller_angle = 30):
     force_angle = np.deg2rad(force_angle)
 
     external_forces = {
-        force_node : np.array([np.cos(force_angle)* 2000, np.sin(force_angle)*2000])  
+        force_node : np.array([np.cos(force_angle)* force_magnitude, np.sin(force_angle)*force_magnitude])  
     }
 
 
-    element_lengths = fixed_element_lengths
-
-    element_lengths[5] = element_lengths[3] * np.tan(roller_angle)
-    element_lengths[4] = np.sqrt(element_lengths[1]**2 + element_lengths[2]**2 - 2* element_lengths[1]*element_lengths[2]*np.cos(np.pi/2 - roller_angle))
-
-    nodes = fixed_nodes_coords
-
-    nodes['C'] = np.array([element_lengths[3], element_lengths[5]])
-
+    element_lengths = {}
     element_angles = {}
     for element, (node1, node2) in elements.items():
         delta = nodes[node2] - nodes[node1]
+        element_lengths[element] = np.linalg.norm(delta)
         element_angles[element] = np.arctan2(delta[1], delta[0])
 
 
@@ -104,13 +92,22 @@ def analyze_truss(force_angle = 240,  roller_angle = 30):
         K_global[np.ix_(dofs, dofs)] += element_stiffness_matrices[element]
 
     # Apply boundary conditions with roller support
-    fixed_dofs = []
-    for node in fixed_nodes:
-        dof = 2 * list(nodes).index(node)
-        fixed_dofs.append(dof)  # Fix only x-translation for roller support
-        if node != fixed_nodes[0]:  # Fix both DOFs for other fixed nodes
-            fixed_dofs.append(dof + 1)
+   
+    fixed_dofs = [2, 3]  # Fix y-translation and x-translation at node B
+
+    # Calculate the angle perpendicular to the slider
+    constraint_angle = roller_angle + np.pi/2 
+
+    # Construct the transformation matrix for the constraint
+    T = np.array([
+        [np.cos(constraint_angle), np.sin(constraint_angle)],
+        [-np.sin(constraint_angle), np.cos(constraint_angle)]
+    ])
+
+    # Apply the transformation to the first two rows and columns of K_global
+    K_global[:2, :2] = T @ K_global[:2, :2] @ T.T
     free_dofs = np.setdiff1d(np.arange(degrees_of_freedom), fixed_dofs)
+
 
     # Create reduced stiffness matrix and force vector
     K_reduced = K_global[np.ix_(free_dofs, free_dofs)]
@@ -149,3 +146,4 @@ def analyze_truss(force_angle = 240,  roller_angle = 30):
     deformed_nodes = {node: coords + U_global[2*i:2*i+2] for i, (node, coords) in enumerate(nodes.items())}
 
     return U_global, reaction_forces, element_stresses, nodes, deformed_nodes 
+

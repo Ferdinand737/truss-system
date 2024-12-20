@@ -17,10 +17,30 @@
         <div
           class="w-full md:w-1/3 shadow-lg p-4 rounded text-white bg-gray-800"
         >
-          <img
-            src="{{ url_for('static', filename='images/truss.png') }}"
-            alt="Example Image"
-          />
+          <div style="position: relative">
+            <img
+              id="truss"
+              src="{{ url_for('static', filename='images/truss.png') }}"
+              alt="Truss"
+              style="position: relative; z-index: 1"
+            />
+
+            <img
+              id="roller"
+              src="{{ url_for('static', filename='images/roller.png') }}"
+              alt="Roller"
+              style="
+                position: absolute;
+                top: 244px;
+                left: 18px;
+                transform: rotate(0deg);
+                transform-origin: 100% 50%;
+                z-index: 2;
+                height: 50px;
+                witdh: 50px;
+              "
+            />
+          </div>
 
           <div class="mt-4">
             <h6 class="text-lg font-semibold text-white mb-4">
@@ -69,6 +89,17 @@
                 placeholder="Enter external force angle (0 to 360 degrees)"
               />
 
+              <label for="force_magnitude" class="block font-semibold mb-2">
+                Force Magnitude(lbf)
+              </label>
+              <input
+                id="force_magnitude"
+                type="number"
+                step="any"
+                class="w-full border border-gray-300 p-2 rounded mb-4 text-black"
+                placeholder="Enter external force magnitude (lbf)"
+              />
+
               <label for="roller_angle" class="block font-semibold mb-2">
                 Roller Angle (β)
               </label>
@@ -106,7 +137,11 @@
     </div>
 
     <script>
-      const analyzeTruss = async (force_angle, roller_angle) => {
+      const analyzeTruss = async (
+        force_angle,
+        roller_angle,
+        force_magnitude
+      ) => {
         force_angle = force_angle + 180;
         const response = await fetch("/analyze", {
           method: "POST",
@@ -116,6 +151,7 @@
           body: JSON.stringify({
             force_angle: force_angle,
             roller_angle: roller_angle,
+            force_magnitude: force_magnitude,
           }),
         });
 
@@ -213,6 +249,12 @@
             `;
 
           plotTruss(data.original_nodes, data.deformed_nodes, data.elements);
+
+          const roller = document.getElementById("roller");
+
+          const rotation_angle = 360 - roller_angle;
+
+          roller.style.transform = `rotate(${rotation_angle}deg)`;
         } else {
           document.getElementById("results").innerHTML = `
               <p class="text-red-500">Error: Unable to process your request.</p>
@@ -281,6 +323,10 @@
         const roller_angle = parseFloat(
           document.getElementById("roller_angle").value
         );
+
+        const force_magnitude = parseFloat(
+          document.getElementById("force_magnitude").value
+        );
         if (
           isNaN(force_angle) ||
           isNaN(roller_angle) ||
@@ -294,13 +340,13 @@
           );
           return;
         }
-        analyzeTruss(force_angle, roller_angle);
+        analyzeTruss(force_angle, roller_angle, force_magnitude);
       });
 
       window.onload = () => {
         const defaultForceAngle = 60;
         const defaultRollerAngle = 30;
-        analyzeTruss(defaultForceAngle, defaultRollerAngle);
+        analyzeTruss(defaultForceAngle, defaultRollerAngle, 2000);
       };
     </script>
   </body>

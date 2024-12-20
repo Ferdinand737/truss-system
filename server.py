@@ -10,24 +10,21 @@ def index():
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    # Extract JSON data from the request
     data = request.json
     force_angle = data.get("force_angle")
     roller_angle = data.get("roller_angle")
+    force_magnitude = data.get("force_magnitude")
 
-    # Input validation
     if force_angle is None or roller_angle is None:
         return jsonify({"error": "Both force_angle and roller_angle are required."}), 400
     
     if not isinstance(force_angle, (float, int)) or not isinstance(roller_angle, (float, int)):
         return jsonify({"error": "Invalid input types. Only numeric values are allowed."}), 400
 
-    # Call the truss analysis logic
-    U, R, S, nodes, deformed_nodes = analyze_truss(force_angle=force_angle, roller_angle=roller_angle)
+    U, R, S, nodes, deformed_nodes = analyze_truss(force_angle=force_angle, roller_angle=roller_angle, force_magnitude=force_magnitude)
 
-    # Convert `U` to a dictionary (indexed by node names) for JSON serialization
     nodal_displacements = {
-        node: U[2*i:2*i+2] # Convert each displacement subset to a list
+        node: U[2*i:2*i+2]
         for i, node in enumerate(['A', 'B', 'C', 'D'])
     }
 
