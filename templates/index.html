@@ -141,14 +141,14 @@
         roller_angle,
         force_magnitude
       ) => {
-        force_angle = force_angle + 180;
+        converted_angle = (450 - force_angle) % 360;
         const response = await fetch("/analyze", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            force_angle: force_angle,
+            force_angle: converted_angle,
             roller_angle: roller_angle,
             force_magnitude: force_magnitude,
           }),
