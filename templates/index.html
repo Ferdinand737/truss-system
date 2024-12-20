@@ -47,7 +47,6 @@
               System Information
             </h6>
             <hr class="mb-4" />
-            <p class="text-white text-sm mb-4">External load (P): 2000 lbf</p>
 
             <h6 class="text-md font-semibold text-white">Members 1, 2, 5</h6>
             <ul class="list-disc list-inside mb-4 text-sm">
@@ -128,7 +127,7 @@
           <div
             id="trussPlot"
             class="bg-white shadow-lg rounded mb-8"
-            style="height: 1000px"
+            style="height: 600px"
           ></div>
 
           <div class="bg-white shadow-lg p-4 rounded" id="results"></div>
@@ -195,20 +194,25 @@
           resultsDiv.innerHTML = `
               <h2 class="text-xl text-center font-bold mb-4">Results</h2>
 
-                 <h3 class="text-lg font-bold mt-4">Angles</h3>
                 <table class="table-auto w-full text-left border-collapse mb-4">
                  
                   <tbody>
                          <tr>
-                      <td class="border px-4 py-2 font-bold">Force (γ)</td>
+                      <td class="border px-4 py-2 font-bold">Force Angle (γ)</td>
                       <td class="border px-4 py-2">
                         ${force_angle - 180}&deg;
                       </td>
                     </tr>
                     <tr>
-                      <td class="border px-4 py-2 font-bold">Roller (β)</td>
+                      <td class="border px-4 py-2 font-bold">Roller Angle (β)</td>
                       <td class="border px-4 py-2">
                         ${roller_angle}&deg;
+                      </td>
+                    </tr>
+                     <tr>
+                      <td class="border px-4 py-2 font-bold">Force (P)</td>
+                      <td class="border px-4 py-2">
+                        ${force_magnitude} lbf
                       </td>
                     </tr>
 
